@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 *.onnx.part
+
+# Personal data: face photos and attendance records stay on your computer
+known_faces/*
+!known_faces/README.txt
+attendance/
