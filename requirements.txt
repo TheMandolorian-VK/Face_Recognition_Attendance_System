@@ -1,5 +1,5 @@
 # =====================================================================
-#  Dependencies for face_detection_gui.py
+#  Dependencies for attendance_system.py and face_detection_gui.py
 # =====================================================================
 #
 #  INSTALL COMMAND (run in a terminal / command prompt, in this folder):
@@ -14,7 +14,8 @@
 #      python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org "opencv-python>=4.8,<5" numpy pillow
 #
 #  THEN RUN THE PROGRAM:
-#      python face_detection_gui.py        (Windows: py face_detection_gui.py)
+#      python attendance_system.py         (Windows: py attendance_system.py)
+#      python face_detection_gui.py        (detection only, no recognition)
 #
 #  NOTES:
 #   - Needs Python 3.8 or newer.
@@ -24,8 +25,8 @@
 #     ships the Haar cascade files that the program uses as a fallback.
 #   - Do NOT also install "opencv-python-headless" - having both installed
 #     breaks cv2. If you have it, run:  pip uninstall opencv-python-headless
-#   - On first run the program downloads the YuNet face model (~230 KB).
-#     If there is no internet it still works using the built-in Haar detector.
+#   - The face models (.onnx files) are included in this repo. If one is
+#     missing, the programs download it automatically on first run.
 # =====================================================================
 
 opencv-python>=4.8,<5
