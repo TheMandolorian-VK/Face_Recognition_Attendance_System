@@ -1,0 +1,33 @@
+# =====================================================================
+#  Dependencies for face_detection_gui.py
+# =====================================================================
+#
+#  INSTALL COMMAND (run in a terminal / command prompt, in this folder):
+#
+#    Windows:
+#      py -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
+#
+#    macOS / Linux:
+#      python3 -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
+#
+#  Or install the packages directly without this file:
+#      python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org "opencv-python>=4.8,<5" numpy pillow
+#
+#  THEN RUN THE PROGRAM:
+#      python face_detection_gui.py        (Windows: py face_detection_gui.py)
+#
+#  NOTES:
+#   - Needs Python 3.8 or newer.
+#   - tkinter (the GUI library) comes built into Python on Windows and macOS.
+#     On Linux install it with:  sudo apt install python3-tk
+#   - opencv-python is pinned below version 5 because OpenCV 5 no longer
+#     ships the Haar cascade files that the program uses as a fallback.
+#   - Do NOT also install "opencv-python-headless" - having both installed
+#     breaks cv2. If you have it, run:  pip uninstall opencv-python-headless
+#   - On first run the program downloads the YuNet face model (~230 KB).
+#     If there is no internet it still works using the built-in Haar detector.
+# =====================================================================
+
+opencv-python>=4.8,<5
+numpy
+pillow
