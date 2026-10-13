@@ -1,34 +1,3 @@
-"""
-Face Recognition Attendance System
-==================================
-
-Recognises registered people from a webcam, greets them with
-"Welcome, Mr. <Lastname>" and marks their attendance in a daily CSV file.
-
-HOW TO REGISTER A PERSON
-  1. Make a folder named "<Firstname> <Lastname>", e.g.  "Vivaan Kumar"
-  2. Put ~5 clear photos of that person's face in it (.jpg / .png)
-  3. Either copy the folder into  known_faces/  next to this script,
-     or click "Add Person Folder..." in the app and choose the folder.
-  The last name shown is the SECOND word of the folder name
-  ("Vivaan Kumar" -> "Welcome, Mr. Kumar").
-
-Attendance is saved to  attendance/attendance_YYYY-MM-DD.csv
-(each person is marked once per day).
-
-Models (both from the OpenCV Model Zoo, run with plain opencv-python):
-  * YuNet  - face detection  (face_detection_yunet_2023mar.onnx, 0.2 MB)
-  * SFace  - face recognition (face_recognition_sface_2021dec_int8.onnx, 10 MB)
-If a model file is missing it is downloaded automatically.
-
-Speed tricks (so it runs smoothly on a normal laptop):
-  * camera runs at 640x480, detection runs on a half-size 320x240 copy
-  * each face is recognised once and then tracked; recognition is only
-    repeated every ~1 second instead of on every frame
-
-Run:  python attendance_system.py
-"""
-
 import csv
 import os
 import shutil
@@ -295,7 +264,6 @@ class AttendanceApp:
         self.stop_btn.pack(fill="x", pady=2)
         ttk.Button(panel, text="Add Person Folder...", command=self.add_person).pack(fill="x", pady=2)
         ttk.Button(panel, text="Reload Faces", command=self.reload_faces).pack(fill="x", pady=2)
-        ttk.Button(panel, text="Open Attendance Folder", command=self.open_attendance_folder).pack(fill="x", pady=2)
 
         ttk.Separator(panel).pack(fill="x", pady=8)
         ttk.Label(panel, text="Match strictness (higher = stricter):").pack(anchor="w")
@@ -314,6 +282,8 @@ class AttendanceApp:
         ttk.Label(panel, text="Present today:", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(8, 2))
         self.present_list = tk.Listbox(panel, height=8, width=34)
         self.present_list.pack(fill="x")
+        self.total_label = ttk.Label(panel, text="Total present: 0", font=("Segoe UI", 11, "bold"))
+        self.total_label.pack(anchor="w", pady=(4, 0))
 
         ttk.Button(panel, text="Quit", command=self.on_close).pack(fill="x", pady=(10, 0))
 
@@ -504,6 +474,7 @@ class AttendanceApp:
         self.present_list.delete(0, "end")
         for name, t in sorted(self.log.marked.items(), key=lambda kv: kv[1]):
             self.present_list.insert("end", f"{t}  {name}")
+        self.total_label.config(text = "%s" % len(self.log.marked))
 
     def open_attendance_folder(self):
         os.makedirs(ATTENDANCE_DIR, exist_ok=True)
