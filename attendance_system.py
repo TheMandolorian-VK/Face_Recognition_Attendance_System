@@ -314,6 +314,8 @@ class AttendanceApp:
         ttk.Label(panel, text="Present today:", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(8, 2))
         self.present_list = tk.Listbox(panel, height=8, width=34)
         self.present_list.pack(fill="x")
+        self.total_label = ttk.Label(panel, text="Present: 0 / 0", font=("Segoe UI", 11, "bold"))
+        self.total_label.pack(anchor="w", pady=(4, 0))
 
         ttk.Button(panel, text="Quit", command=self.on_close).pack(fill="x", pady=(10, 0))
 
@@ -328,6 +330,7 @@ class AttendanceApp:
             self.people_label.config(text=f"Registered ({len(self.engine.people)}): {names}")
         else:
             self.people_label.config(text="No one registered yet.\nClick 'Add Person Folder...'")
+        self._update_total()
         print("[INFO] " + ("\n[INFO] ".join(report) if report else "known_faces/ is empty"))
         if show_popup:
             messagebox.showinfo("Faces loaded", "\n".join(report) or
@@ -504,6 +507,11 @@ class AttendanceApp:
         self.present_list.delete(0, "end")
         for name, t in sorted(self.log.marked.items(), key=lambda kv: kv[1]):
             self.present_list.insert("end", f"{t}  {name}")
+        self._update_total()
+
+    def _update_total(self):
+        """Show 'Present: <people seen today> / <people registered>'."""
+        self.total_label.config(text=f"Present: {len(self.log.marked)} / {len(self.engine.people)}")
 
     def open_attendance_folder(self):
         os.makedirs(ATTENDANCE_DIR, exist_ok=True)
