@@ -9,6 +9,8 @@ import urllib.request
 from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
+from pathlib import Path
+
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
@@ -18,7 +20,7 @@ from PIL import Image, ImageTk
 # --------------------------------------------------------------------------- #
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 KNOWN_FACES_DIR = os.path.join(SCRIPT_DIR, "known_faces")
-ATTENDANCE_DIR = os.path.join(SCRIPT_DIR, "attendance")
+ATTENDANCE_DIR = os.path.join(SCRIPT_DIR, "Attendance")
 
 MODEL_BASE_URL = "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
 DETECTOR_FILE = "face_detection_yunet_2023mar.onnx"
@@ -30,8 +32,9 @@ MODELS = {
 
 CAMERA_W, CAMERA_H = 640, 480
 DETECT_SCALE = 0.5              # detect on a half-size frame (much faster)
-DETECT_CONFIDENCE = 0.75        # YuNet score needed to count as a face
-DEFAULT_MATCH_THRESHOLD = 0.40  # SFace cosine similarity (OpenCV suggests 0.363)
+DETECT_CONFIDENCE = 0.65       # YuNet score needed to count as a face
+DETECT_MAX, DETECT_MIN = 1, 0.3
+DEFAULT_MATCH_THRESHOLD = 0.60  # SFace cosine similarity (OpenCV suggests 0.363)
 RECHECK_KNOWN_EVERY = 30        # frames between re-recognising a known face
 RECHECK_UNKNOWN_EVERY = 5       # frames between re-trying an unknown face
 WELCOME_SECONDS = 4             # how long the welcome message stays up
@@ -181,9 +184,8 @@ class FaceEngine:
 # --------------------------------------------------------------------------- #
 class AttendanceLog:
     def __init__(self):
-        os.makedirs(ATTENDANCE_DIR, exist_ok=True)
-        self.date = datetime.now().strftime("%Y-%m-%d")
-        self.path = os.path.join(ATTENDANCE_DIR, f"attendance_{self.date}.csv")
+        self.date = datetime.now().strftime("%d.%m.%y")
+        self.path = os.path.join("Attendance", f"attendance_{self.date}.csv")
         self.marked = {}  # name -> time string
         if os.path.exists(self.path):
             with open(self.path, newline="", encoding="utf-8") as fh:
@@ -236,6 +238,14 @@ class AttendanceApp:
         self.reload_faces(show_popup=False)
         self._refresh_attendance_list()
 
+    def scale_func(self, value):
+        self.thr_label.config(text=f"{value:.2f}")
+        val = float(self.threshold.get())
+        snapped_val = round(val / 0.05) * 0.05
+        snapped_val = max(DETECT_MIN, min(snapped_val, DETECT_MAX))
+
+        return snapped_val
+
     # ---------------- layout ---------------- #
     def _build_ui(self):
         main = ttk.Frame(self.root, padding=8)
@@ -264,13 +274,15 @@ class AttendanceApp:
         self.stop_btn.pack(fill="x", pady=2)
         ttk.Button(panel, text="Add Person Folder...", command=self.add_person).pack(fill="x", pady=2)
         ttk.Button(panel, text="Reload Faces", command=self.reload_faces).pack(fill="x", pady=2)
+        ttk.Button(panel, text="Retake Attendance", command=self.retake_attendance).pack(fill="x", pady=2)
+
 
         ttk.Separator(panel).pack(fill="x", pady=8)
         ttk.Label(panel, text="Match strictness (higher = stricter):").pack(anchor="w")
         self.thr_label = ttk.Label(panel, text=f"{DEFAULT_MATCH_THRESHOLD:.2f}")
         self.thr_label.pack(anchor="e")
-        ttk.Scale(panel, from_=0.30, to=0.70, variable=self.threshold,
-                  command=lambda _v: self.thr_label.config(text=f"{self.threshold.get():.2f}")).pack(fill="x")
+        ttk.Scale(panel, from_=DETECT_MIN,  to=DETECT_MAX, variable=self.threshold,
+                  command=lambda _v: self.scale_func(self.threshold.get())).pack(fill="x")
         ttk.Checkbutton(panel, text="Mirror camera", variable=self.mirror).pack(anchor="w", pady=(6, 0))
 
         ttk.Separator(panel).pack(fill="x", pady=8)
@@ -282,7 +294,7 @@ class AttendanceApp:
         ttk.Label(panel, text="Present today:", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(8, 2))
         self.present_list = tk.Listbox(panel, height=8, width=34)
         self.present_list.pack(fill="x")
-        self.total_label = ttk.Label(panel, text="Total present: 0", font=("Segoe UI", 11, "bold"))
+        self.total_label = tk.Label(panel, text="Total present: 0", font=("Segoe UI", 11, "bold"))
         self.total_label.pack(anchor="w", pady=(4, 0))
 
         ttk.Button(panel, text="Quit", command=self.on_close).pack(fill="x", pady=(10, 0))
@@ -293,12 +305,6 @@ class AttendanceApp:
         self.root.update_idletasks()
         report = self.engine.load_known_faces()
         self.tracks = []
-        if self.engine.people:
-            names = ", ".join(self.engine.people)
-            self.people_label.config(text=f"Registered ({len(self.engine.people)}): {names}")
-        else:
-            self.people_label.config(text="No one registered yet.\nClick 'Add Person Folder...'")
-        print("[INFO] " + ("\n[INFO] ".join(report) if report else "known_faces/ is empty"))
         if show_popup:
             messagebox.showinfo("Faces loaded", "\n".join(report) or
                                 "No person folders found in known_faces/.")
@@ -319,6 +325,19 @@ class AttendanceApp:
             for f in photos:
                 shutil.copy2(os.path.join(src, f), os.path.join(dest, f))
         self.reload_faces(show_popup=True)
+
+    # ------------------------------------------ #
+    def retake_attendance(self):
+        if not messagebox.askyesno("Retake attendance",
+                                   "This deletes today's attendance and starts again. Continue?"):
+            return
+        if os.path.exists(self.log.path):   # the REAL file path, which AttendanceLog already knows
+            os.remove(self.log.path)
+        self.log.marked.clear()             # forget who was marked, so mark() accepts them again
+        self.tracks = []                    # forget faces on screen, so they're re-recognised now
+        self.welcome.clear()
+        self._refresh_attendance_list()     # empties the list AND resets the "Total Present" label
+        print("Attendance reset.")
 
     # ---------------- camera ---------------- #
     def _open_camera(self, index):
@@ -462,7 +481,7 @@ class AttendanceApp:
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         self.photo = ImageTk.PhotoImage(Image.fromarray(rgb))
         self.video.config(image=self.photo)
-
+ 
     def _show_message(self, text):
         canvas = np.zeros((CAMERA_H, CAMERA_W, 3), np.uint8)
         (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
@@ -474,7 +493,7 @@ class AttendanceApp:
         self.present_list.delete(0, "end")
         for name, t in sorted(self.log.marked.items(), key=lambda kv: kv[1]):
             self.present_list.insert("end", f"{t}  {name}")
-        self.total_label.config(text = "%s" % len(self.log.marked))
+        self.total_label.config(text = "Total Present Today: %s" % len(self.log.marked))
 
     def open_attendance_folder(self):
         os.makedirs(ATTENDANCE_DIR, exist_ok=True)
